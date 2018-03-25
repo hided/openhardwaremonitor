@@ -36,6 +36,7 @@ namespace OpenHardwareMonitor.Hardware.CPU {
     private readonly Sensor packageTemperature;
     private readonly Sensor[] coreClocks;
     private readonly Sensor busClock;
+    private readonly Sensor coreClock;
     private readonly Sensor[] powerSensors;
 
     private readonly Microarchitecture microarchitecture;
@@ -286,6 +287,7 @@ namespace OpenHardwareMonitor.Hardware.CPU {
       }
 
       busClock = new Sensor("Bus Speed", 0, SensorType.Clock, this, settings);
+      coreClock = new Sensor("Core Clock", 1, SensorType.Clock, this, settings);
       coreClocks = new Sensor[coreCount];
       for (int i = 0; i < coreClocks.Length; i++) {
         coreClocks[i] =
@@ -402,6 +404,7 @@ namespace OpenHardwareMonitor.Hardware.CPU {
 
       if (HasTimeStampCounter && timeStampCounterMultiplier > 0) {
         double newBusClock = 0;
+        float newCoreClock = 0;
         uint eax, edx;
         for (int i = 0; i < coreClocks.Length; i++) {
           System.Threading.Thread.Sleep(1);
@@ -412,7 +415,9 @@ namespace OpenHardwareMonitor.Hardware.CPU {
             switch (microarchitecture) {
               case Microarchitecture.Nehalem: {
                   uint multiplier = eax & 0xff;
-                  coreClocks[i].Value = (float)(multiplier * newBusClock);
+                  float val = (float)(multiplier * newBusClock);
+                  coreClocks[i].Value = val;
+                  newCoreClock += val;
                 } break;
               case Microarchitecture.SandyBridge:
               case Microarchitecture.IvyBridge:
@@ -423,22 +428,30 @@ namespace OpenHardwareMonitor.Hardware.CPU {
               case Microarchitecture.KabyLake: 
               case Microarchitecture.ApolloLake: {
                   uint multiplier = (eax >> 8) & 0xff;
-                  coreClocks[i].Value = (float)(multiplier * newBusClock);
+                  float val = (float)(multiplier * newBusClock);
+                  coreClocks[i].Value = val;
+                  newCoreClock += val;
                 } break;
               default: {
                   double multiplier =
                     ((eax >> 8) & 0x1f) + 0.5 * ((eax >> 14) & 1);
-                  coreClocks[i].Value = (float)(multiplier * newBusClock);
+                  float val = (float)(multiplier * newBusClock);
+                  coreClocks[i].Value = val;
+                  newCoreClock += val;
                 } break;
             }
           } else {
             // if IA32_PERF_STATUS is not available, assume TSC frequency
-            coreClocks[i].Value = (float)TimeStampCounterFrequency;
+            float val = (float)TimeStampCounterFrequency;
+            coreClocks[i].Value = val;
+            newCoreClock += val;
           }
         }
         if (newBusClock > 0) {
-          this.busClock.Value = (float)newBusClock;
-          ActivateSensor(this.busClock);
+          busClock.Value = (float)newBusClock;
+          coreClock.Value = newCoreClock / coreClocks.Length;
+          ActivateSensor(busClock);
+          ActivateSensor(coreClock);
         }
       }
 

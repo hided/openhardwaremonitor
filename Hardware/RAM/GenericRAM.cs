@@ -16,6 +16,7 @@ namespace OpenHardwareMonitor.Hardware.RAM {
     private Sensor loadSensor;
     private Sensor usedMemory;
     private Sensor availableMemory;
+    private Sensor totalMemory;
 
     public GenericRAM(string name, ISettings settings)
       : base(name, new Identifier("ram"), settings)
@@ -30,6 +31,10 @@ namespace OpenHardwareMonitor.Hardware.RAM {
       availableMemory = new Sensor("Available Memory", 1, SensorType.Data, this, 
         settings);
       ActivateSensor(availableMemory);
+
+      totalMemory = new Sensor("Total Memory", 2, SensorType.Data, this,
+        settings);
+      ActivateSensor(totalMemory);
     }
 
     public override HardwareType HardwareType {
@@ -54,6 +59,9 @@ namespace OpenHardwareMonitor.Hardware.RAM {
         - status.AvailablePhysicalMemory) / (1024 * 1024 * 1024);
 
       availableMemory.Value = (float)status.AvailablePhysicalMemory /
+        (1024 * 1024 * 1024);
+
+      totalMemory.Value = (float)status.TotalPhysicalMemory / 
         (1024 * 1024 * 1024);
     }
 
